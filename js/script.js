@@ -115,8 +115,8 @@ $(document).ready(function () {
   ];
   let modoAtual = "maximizado";
   let conversaAtivaId = null;
-  const modalNovoGrupo = new bootstrap.Modal($("#modal-novo-grupo"));
-  const modalInfo = new bootstrap.Modal($("#modal-info"));
+  const modalNovoGrupo = $("#modal-novo-grupo");
+  const modalInfo = $("#modal-info");
   let pressTimer;
 
   // --- FUNÇÕES DE RENDERIZAÇÃO E LÓGICA ---
@@ -135,12 +135,15 @@ $(document).ready(function () {
           ? `<span class="badge-nao-lido">${conversa.naoLido}</span>`
           : "";
       const fixadoClass = conversa.fixado ? "fixado" : "";
+      const fixadoIcon = conversa.fixado
+        ? '<i class="fas fa-thumbtack fixado-icon-lista"></i>'
+        : "";
 
       const conversaHtml = `
                 <div class="conversa-item ${fixadoClass}" data-id="${conversa.id}" data-nome="${conversa.nome}" data-tipo="${conversa.tipo}">
                     <div class="avatar" data-nome="${conversa.nome}"></div>
                     <div class="conversa-info">
-                        <h4>${conversa.nome}</h4>
+                        <h4>${conversa.nome} ${fixadoIcon}</h4>
                         <p>${conversa.ultimaMsg}</p>
                     </div>
                     <div class="conversa-meta">
@@ -154,7 +157,6 @@ $(document).ready(function () {
     gerarAvatares();
     filtrarConversas();
   }
-
   /**
    * Cria e exibe o menu de contexto customizado para a lista de conversas.
    */
@@ -228,50 +230,219 @@ $(document).ready(function () {
 
     const mensagensDaConversa = mensagensDB[idConversa] || [];
 
+    //todas as mensagens primeiro
     mensagensDaConversa.forEach((msg) => {
-      if (msg.fixada) {
-        const fixadaHtml = `
-                    <div class="mensagem-fixada" data-msg-id="${msg.id}">
-                        <div class="mensagem-fixada-conteudo">
-                            <i class="fas fa-thumbtack mensagem-fixada-icone"></i>
-                            <p>${msg.texto}</p>
-                        </div>
-                        <button class="btn-desafixar" title="Desafixar"><i class="fas fa-times"></i></button>
-                    </div>
-                `;
-        areaFixadas.append(fixadaHtml);
-      } else {
-        adicionarBalaoMensagem(msg.texto, msg.tipo, msg.id);
-      }
+      adicionarBalaoMensagem(msg.texto, msg.tipo, msg.id, msg.fixada); //estado 'fixada'
     });
+
+    mensagensDaConversa
+      .filter((msg) => msg.fixada)
+      .forEach((msg) => {
+        const fixadaHtml = `
+                <div class="mensagem-fixada" data-msg-id="${
+                  msg.id
+                }" data-conversa-id="${idConversa}">
+                    <div class="mensagem-fixada-conteudo">
+                        <i class="fas fa-thumbtack mensagem-fixada-icone"></i>
+                        <p><strong>${
+                          msg.tipo === "enviada" ? "Você" : "Remetente"
+                        }:</strong> ${msg.texto}</p>
+                    </div>
+                    <button class="btn-desafixar" title="Desafixar"><i class="fas fa-times"></i></button>
+                </div>
+            `;
+        areaFixadas.append(fixadaHtml);
+      });
+
     scrollParaUltimaMensagem();
   }
 
   /**
    * Adiciona um balão de mensagem na área de conversa.
    */
-  function adicionarBalaoMensagem(texto, tipo, msgId) {
+  /**
+   * Adiciona um balão de mensagem na área de conversa.
+   * ATUALIZADO: Corrigido para usar 'data-toggle' do Bootstrap 4.
+   */
+  function adicionarBalaoMensagem(texto, tipo, msgId, isFixada = false) {
     const regexUrl = /(https?:\/\/[^\s]+)/g;
     const textoFormatado = texto.replace(
       regexUrl,
       '<a href="$1" target="_blank">$1</a>'
     );
+    const textoCurtir = "Curtir";
 
     const menuHtml = `
             <div class="dropdown menu-mensagem-wrapper">
-              <button class="btn-menu-msg" type="button" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
+              <button class="btn-menu-msg" type="button" data-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item acao-curtir" href="#"><i class="fas fa-thumbs-up fa-fw me-2"></i>Curtir</a></li>
-                <li><a class="dropdown-item acao-fixar-msg" href="#"><i class="fas fa-thumbtack fa-fw me-2"></i>Fixar</a></li>
+                <li><a class="dropdown-item acao-curtir" href="#"><i class="fas fa-thumbs-up fa-fw me-2"></i><span>${textoCurtir}</span></a></li>
+                <li><a class="dropdown-item acao-fixar-msg" href="#"><i class="fas fa-thumbtack fa-fw me-2"></i>${
+                  isFixada ? "Desafixar" : "Fixar"
+                }</a></li>
                 <li><a class="dropdown-item acao-apagar-msg" href="#"><i class="fas fa-trash fa-fw me-2"></i>Apagar</a></li>
               </ul>
             </div>
         `;
 
-    const balaoHtml = `<div class="mensagem ${tipo}" data-msg-id="${msgId}" data-curtidas="0">${menuHtml}<p>${textoFormatado}</p></div>`;
+    const fixadaClass = isFixada ? "mensagem-original-fixada" : "";
+    const balaoHtml = `<div class="mensagem ${tipo} ${fixadaClass}" data-msg-id="${msgId}" data-curtidas="0" data-curtido-pelo-usuario="false">${menuHtml}<p>${textoFormatado}</p></div>`;
     $("#area-mensagens").append(balaoHtml);
   }
 
+  /**
+   * Popula e exibe o modal com informações da conversa ativa.
+   */
+  function mostrarModalInfo() {
+    // 1. Validação inicial
+    if (!conversaAtivaId) return;
+    const conversa = conversasDB.find((c) => c.id === conversaAtivaId);
+    if (!conversa) return;
+
+    const modalDialog = $("#modal-info .modal-dialog");
+    const modalContent = $("#modal-info .modal-content");
+
+    modalContent.html("");
+
+    // 2. Verifica de forma segura se a conversa é do tipo 'chats'
+    if (conversa && conversa.tipo && conversa.tipo.trim() === "chats") {
+      modalDialog.removeClass("modal-xl").addClass("modal-md");
+
+      // CORREÇÃO: Trocado 'data-bs-dismiss' por 'data-dismiss'
+      const htmlChat = `
+            <div class="modal-header">
+                <h5 class="modal-title">Informações do Contato</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-center">
+                    <div class="avatar me-3" data-nome="${conversa.nome}"></div>
+                    <div>
+                        <h5 class="mb-0">${conversa.nome}</h5>
+                        <p class="text-muted mb-0">${
+                          conversa.email || "E-mail não disponível"
+                        }</p>
+                    </div>
+                </div>
+            </div>
+        `;
+      modalContent.html(htmlChat);
+    } else if (conversa && conversa.tipo && conversa.tipo.trim() === "grupos") {
+      modalDialog.removeClass("modal-md").addClass("modal-xl");
+
+      const listaUsuarios = conversa.usuarios || [];
+      const todosUsuarios = [
+        { nome: "Você", email: "voce@example.com", admin: true },
+        { nome: "Marcos", email: "marcos@example.com", admin: true },
+        { nome: "Ana", email: "ana@example.com", admin: false },
+        { nome: "Carlos", email: "carlos@example.com", admin: true },
+        { nome: "Julia", email: "julia@example.com", admin: false },
+      ];
+
+      const membrosDoGrupo = listaUsuarios.map((nomeUsuario) => {
+        return (
+          todosUsuarios.find((u) => u.nome === nomeUsuario) || {
+            nome: nomeUsuario,
+            admin: false,
+          }
+        );
+      });
+
+      const membrosHtml = membrosDoGrupo
+        .map((membro) => {
+          const adminTag =
+            membro.admin || (membro.nome === "Você" && conversa.admin)
+              ? '<span class="member-admin-tag">Admin</span>'
+              : "";
+          const btnRemover =
+            conversa.admin && membro.nome !== "Você"
+              ? '<button class="btn btn-sm btn-danger btn-remover-usuario" data-usuario="' +
+                membro.nome +
+                '"><i class="fas fa-user-minus"></i></button>'
+              : "";
+          return `
+                <li class="list-group-item member-item" data-member-name="${
+                  membro.nome
+                }" data-member-email="${membro.email || ""}">
+                    <div class="member-avatar avatar" data-nome="${
+                      membro.nome
+                    }"></div>
+                    <div class="member-info">
+                        <div class="member-name-row"><h6 class="member-name">${
+                          membro.nome
+                        }</h6>${adminTag}</div>
+                    </div>
+                    ${btnRemover}
+                </li>`;
+        })
+        .join("");
+
+      // CORREÇÃO: Trocado 'data-bs-dismiss' por 'data-dismiss' e classe 'btn-close' por 'close'
+      const htmlGrupo = `
+            <div class="modal-header modal-header-custom-group">
+                <h4 class="modal-title">Membros (${listaUsuarios.length})</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body modal-body-custom-group">
+                <div class="search-members-container">
+                    <i class="fas fa-search search-members-icon"></i>
+                    <input type="text" class="form-control search-members-input" placeholder="Procurar membros">
+                </div>
+                <ul class="list-group list-group-members">${membrosHtml}</ul>
+                <div class="group-admin-actions">
+                    ${
+                      conversa.admin
+                        ? '<button class="btn btn-primary btn-sm btn-adicionar-usuario"><i class="fas fa-user-plus me-2"></i> Adicionar</button>'
+                        : ""
+                    }
+                    ${
+                      conversa.admin
+                        ? '<button class="btn btn-outline-secondary btn-sm btn-editar-grupo"><i class="fas fa-edit me-2"></i> Editar Grupo</button>'
+                        : ""
+                    }
+                </div>
+            </div>`;
+      modalContent.html(htmlGrupo);
+    }
+
+    // 3. Exibe o modal e gera os avatares
+    // O método .modal('show') do jQuery funciona para ambas as versões
+    modalInfo.modal("show");
+    gerarAvatares();
+  }
+  // --- EVENT HANDLERS DE FIXAR/DESAFIXAR ---
+
+  $(document).on("click", ".acao-fixar-msg", function (e) {
+    e.preventDefault();
+    const msgId = $(this).closest(".mensagem").data("msg-id");
+    const msg = mensagensDB[conversaAtivaId].find((m) => m.id === msgId);
+
+    if (msg) {
+      // Em vez de apenas definir como 'true', nós invertemos o valor atual.
+      // Se for 'true', vira 'false'. Se for 'false', vira 'true'.
+      msg.fixada = !msg.fixada;
+      carregarMensagens(conversaAtivaId);
+    }
+  });
+
+  $(document).on("click", ".btn-desafixar", function () {
+    const msgId = $(this).closest(".mensagem-fixada").data("msg-id");
+    const conversaIdDaMensagemFixada = $(this)
+      .closest(".mensagem-fixada")
+      .data("conversa-id");
+    const msg = mensagensDB[conversaIdDaMensagemFixada].find(
+      (m) => m.id === msgId
+    );
+    if (msg) {
+      msg.fixada = false;
+      // Carrega as mensagens da conversa ativa (a mesma que continha a mensagem fixada)
+      carregarMensagens(conversaIdDaMensagemFixada);
+    }
+  });
   /**
    * Rola a área de mensagens para o final.
    */
@@ -327,83 +498,187 @@ $(document).ready(function () {
    * Popula e exibe o modal com informações da conversa ativa.
    *
    */
+
   function mostrarModalInfo() {
+    // 1. Validação inicial
     if (!conversaAtivaId) return;
     const conversa = conversasDB.find((c) => c.id === conversaAtivaId);
     if (!conversa) return;
 
-    const titulo = $("#modal-info-titulo");
-    const corpo = $("#modal-info-corpo");
-    corpo.html("");
+    const modalDialog = $("#modal-info .modal-dialog");
+    const modalContent = $("#modal-info .modal-content");
 
-    if (conversa.tipo === "chats") {
-      titulo.text("Informações do Contato");
-      corpo.html(`
-            <h5>${conversa.nome}</h5>
-            <p class="text-muted">${
-              conversa.email || "E-mail não disponível"
-            }</p>
-        `);
-    } else {
-      // Grupo
-      titulo.text("Informações do Grupo");
+    // Limpa completamente o conteúdo anterior para evitar qualquer resíduo
+    modalContent.html("");
 
-      const btnEditarNome = conversa.admin
-        ? `<button class="btn-editar-campo" data-campo="nome"><i class="fas fa-pencil-alt"></i></button>`
-        : "";
-      const btnEditarDesc = conversa.admin
-        ? `<button class="btn-editar-campo" data-campo="descricao"><i class="fas fa-pencil-alt"></i></button>`
-        : "";
+    // 2. Verifica de forma segura se a conversa é do tipo 'chat'
+    if (conversa && conversa.tipo && conversa.tipo.trim() === "chats") {
+      // --- LÓGICA EXCLUSIVA PARA CHAT PRIVADO ---
 
-      // 'conversa.usuarios' seja um array antes de usar .map()
-      // Se 'conversa.usuarios' não existir, usa um array vazio [] como padrão.
+      const htmlChat = `
+            <div class="modal-header">
+                <h5 class="modal-title">Informações do Contato</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-center">
+                    <div class="avatar me-3" data-nome="${conversa.nome}"></div>
+                    <div>
+                        <h5 class="mb-0">${conversa.nome}</h5>
+                        <p class="text-muted mb-0">${
+                          conversa.email || "E-mail não disponível"
+                        }</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+      modalContent.html(htmlChat);
+    } else if (conversa && conversa.tipo && conversa.tipo.trim() === "grupos") {
+      // --- LÓGICA EXCLUSIVA PARA GRUPO ---
+
       const listaUsuarios = conversa.usuarios || [];
+      const todosUsuarios = [
+        {
+          nome: "Você",
+          email: "voce@example.com",
+          telefone: null,
+          admin: true,
+        },
+        {
+          nome: "Marcos",
+          email: "marcos@example.com",
+          telefone: "+55 11 98765-4321",
+          admin: true,
+        },
+        {
+          nome: "Ana",
+          email: "ana@example.com",
+          telefone: "+55 21 99876-5432",
+          admin: false,
+        },
+        {
+          nome: "Carlos",
+          email: "carlos@example.com",
+          telefone: "+55 31 97654-3210",
+          admin: true,
+        },
+        {
+          nome: "Julia",
+          email: "julia@example.com",
+          telefone: "+55 41 96543-2109",
+          admin: false,
+        },
+      ];
 
-      let participantesHtml = listaUsuarios
-        .map(
-          (user) => `
-            <li class="list-group-item">
-                ${user}
-                ${
-                  conversa.admin && user !== "Você"
-                    ? '<button class="btn btn-sm btn-outline-danger btn-remover-usuario" data-usuario="' +
-                      user +
-                      '"><i class="fas fa-user-minus"></i></button>'
-                    : ""
-                }
-            </li>
-        `
-        )
+      const membrosDoGrupo = listaUsuarios.map((nomeUsuario) => {
+        return (
+          todosUsuarios.find((u) => u.nome === nomeUsuario) || {
+            nome: nomeUsuario,
+            admin: false,
+          }
+        );
+      });
+
+      const membrosHtml = membrosDoGrupo
+        .map((membro) => {
+          const adminTag =
+            membro.admin || (membro.nome === "Você" && conversa.admin)
+              ? '<span class="member-admin-tag">Admin</span>'
+              : "";
+          const btnRemover =
+            conversa.admin && membro.nome !== "Você"
+              ? '<button class="btn btn-sm btn-danger btn-remover-usuario" data-usuario="' +
+                membro.nome +
+                '"><i class="fas fa-user-minus"></i></button>'
+              : "";
+          return `
+                <li class="list-group-item member-item" data-member-name="${
+                  membro.nome
+                }" data-member-email="${membro.email || ""}">
+                    <div class="member-avatar avatar" data-nome="${
+                      membro.nome
+                    }"></div>
+                    <div class="member-info">
+                        <div class="member-name-row"><h6 class="member-name">${
+                          membro.nome
+                        }</h6>${adminTag}</div>
+                    </div>
+                    ${btnRemover}
+                </li>`;
+        })
         .join("");
 
-      corpo.html(`
-            <div class="mb-3">
-                <div class="campo-editavel">
-                    <h5 data-id="nome-grupo-display">${conversa.nome}</h5>
-                    ${btnEditarNome}
-                </div>
+      const htmlGrupo = `
+            <div class="modal-header modal-header-custom-group">
+                <h4 class="modal-title">Membros (${listaUsuarios.length})</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="mb-3">
-                <label class="form-label text-muted">Descrição</label>
-                <div class="campo-editavel">
-                    <p data-id="descricao-grupo-display">${
-                      conversa.descricao || "Sem descrição"
-                    }</p>
+            <div class="modal-body modal-body-custom-group">
+                <div class="search-members-container">
+                    <i class="fas fa-search search-members-icon"></i>
+                    <input type="text" class="form-control search-members-input" placeholder="Procurar membros">
                 </div>
-                ${btnEditarDesc}
-            </div>
-            <hr>
-            <h6>${listaUsuarios.length} Participantes</h6>
-            <ul class="list-group mb-3">${participantesHtml}</ul>
-            ${
-              conversa.admin
-                ? '<button class="btn btn-primary btn-sm btn-adicionar-usuario"><i class="fas fa-user-plus"></i> Adicionar</button>'
-                : ""
-            }
-        `);
+                <ul class="list-group list-group-members">${membrosHtml}</ul>
+                <div class="group-admin-actions">
+                    ${
+                      conversa.admin
+                        ? '<button class="btn btn-primary btn-sm btn-adicionar-usuario"><i class="fas fa-user-plus me-2"></i> Adicionar</button>'
+                        : ""
+                    }
+                    ${
+                      conversa.admin
+                        ? '<button class="btn btn-outline-secondary btn-sm btn-editar-grupo"><i class="fas fa-edit me-2"></i> Editar Grupo</button>'
+                        : ""
+                    }
+                </div>
+            </div>`;
+
+      modalContent.html(htmlGrupo);
     }
-    modalInfo.show();
+
+    // 3. Exibe o modal e gera os avatares
+    modalInfo.modal("show");
+    gerarAvatares();
   }
+
+  // Handler para o botão "Editar Grupo" no modal de membros (opcional)
+  $(document).on("click", ".btn-editar-grupo", function () {
+    alert(
+      "Funcionalidade de Editar Grupo (nome/descrição) seria implementada aqui, talvez em outro modal!"
+    );
+    // Aqui você pode abrir um novo modal com os campos para editar o nome e a descrição do grupo,
+    // usando o mesmo padrão que tínhamos anteriormente.
+  });
+
+  // Handler para adicionar membro (exemplo simples com prompt)
+  $(document).on("click", ".btn-adicionar-usuario", function () {
+    const novoUsuarioNome = prompt(
+      "Digite o nome do novo membro a adicionar ao grupo:"
+    );
+    if (novoUsuarioNome && novoUsuarioNome.trim() !== "") {
+      const conversa = conversasDB.find((c) => c.id === conversaAtivaId);
+      if (conversa && conversa.tipo === "grupos") {
+        if (!conversa.usuarios.includes(novoUsuarioNome.trim())) {
+          conversa.usuarios.push(novoUsuarioNome.trim());
+          mostrarModalInfo(); // Re-renderiza o modal
+        } else {
+          alert("Este membro já está no grupo.");
+        }
+      }
+    }
+  });
+
+  // Handler para remover membro
+  $(document).on("click", ".btn-remover-usuario", function (e) {
+    e.stopPropagation(); // Impede que o clique no botão ative o clique no item de membro
+    const usuarioRemover = $(this).data("usuario");
+    const conversa = conversasDB.find((c) => c.id === conversaAtivaId);
+    if (conversa && conversa.tipo === "grupo") {
+      conversa.usuarios = conversa.usuarios.filter((u) => u !== usuarioRemover);
+      mostrarModalInfo(); // Re-renderiza o modal
+    }
+  });
   /**
    * Filtra a lista de conversas com base na busca e na aba ativa.
    */
@@ -518,15 +793,38 @@ $(document).ready(function () {
   $(document).on("keypress", "#input-mensagem", (e) => {
     13 === e.which && (e.preventDefault(), enviarMensagem());
   });
-  $(document).on("click", "#botao-nova-conversa", () => modalNovoGrupo.show());
+  $(document).on("click", "#botao-nova-conversa", () =>
+    modalNovoGrupo.modal("show")
+  );
   $(document).on("click", ".acao-curtir", function (e) {
     e.preventDefault();
-    const s = $(this).closest(".mensagem");
-    let o = parseInt(s.attr("data-curtidas")) || 0;
-    o++, s.attr("data-curtidas", o);
-    let t = s.find(".like-badge");
-    t.length || (t = $('<div class="like-badge"></div>').appendTo(s)),
-      t.html(`👍 ${o}`);
+    const mensagem = $(this).closest(".mensagem");
+    const linkCurtir = $(this).find("span"); // Seleciona o texto "Curtir"
+
+    let curtidas = parseInt(mensagem.attr("data-curtidas")) || 0;
+    const jaCurtido = mensagem.attr("data-curtido-pelo-usuario") === "true";
+
+    if (jaCurtido) {
+      // Se já curtiu, então DESCURTE
+      curtidas--;
+      mensagem.attr("data-curtido-pelo-usuario", "false");
+      linkCurtir.text("Curtir");
+    } else {
+      curtidas++;
+      mensagem.attr("data-curtido-pelo-usuario", "true");
+      linkCurtir.text("Descurtir");
+    }
+
+    mensagem.attr("data-curtidas", curtidas);
+    let badge = mensagem.find(".like-badge");
+    if (curtidas > 0) {
+      if (!badge.length) {
+        badge = $('<div class="like-badge"></div>').appendTo(mensagem);
+      }
+      badge.html(`👍 ${curtidas}`);
+    } else {
+      badge.remove();
+    }
   });
   $(document).on("click", ".acao-apagar-msg", function (e) {
     e.preventDefault();
@@ -585,25 +883,6 @@ $(document).ready(function () {
       const conversa = conversasDB.find((c) => c.id === conversaAtivaId);
       conversa.usuarios.push(novoUsuario.trim());
       mostrarModalInfo();
-    }
-  });
-
-  // Handlers de Mensagens Fixadas
-  $(document).on("click", ".acao-fixar-msg", function (e) {
-    e.preventDefault();
-    const msgId = $(this).closest(".mensagem").data("msg-id");
-    const msg = mensagensDB[conversaAtivaId].find((m) => m.id === msgId);
-    if (msg) {
-      msg.fixada = true;
-      carregarMensagens(conversaAtivaId);
-    }
-  });
-  $(document).on("click", ".btn-desafixar", function () {
-    const msgId = $(this).closest(".mensagem-fixada").data("msg-id");
-    const msg = mensagensDB[conversaAtivaId].find((m) => m.id === msgId);
-    if (msg) {
-      msg.fixada = false;
-      carregarMensagens(conversaAtivaId);
     }
   });
 
