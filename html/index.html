@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interface de Chat</title>
+     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" defer></script>
      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
      <link rel="stylesheet" href="../css/style.css">
 </head>
@@ -22,7 +24,7 @@
         <div id="chatbox-corpo"></div>
     </div>
     
-    <button id="btn-abrir-chatbox" title="Abrir Chat"><i class="fa-solid fa-down-left-and-up-right-to-center"></i></button>
+    <button id="btn-abrir-chatbox" title="Chat Box"><i class="fa-solid fa-down-left-and-up-right-to-center"></i></button>
     
     <div id="templates" style="display: none;">
     
@@ -37,6 +39,9 @@
                     </div>
                     <div class="acoes-cabecalho">
                         <i id="icone-busca" class="fas fa-search"></i>
+                        <button id="btn-minimizar-maximizado" title="Minimizar para Chatbox">
+                            <i class="fas fa-compress"></i>
+                        </button>
                     </div>
                
                 </header>
@@ -73,42 +78,60 @@
         </div>
     </div>
     
-    <div class="modal fade" id="modal-novo-grupo" tabindex="-1">
-      <div class="modal-dialog">
+   <div class="modal fade" id="modal-novo-grupo" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Criar Novo Grupo</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <form>
-              <div class="mb-3">
-                <label for="nome-grupo" class="form-label">Nome do Grupo</label>
-                <input type="text" class="form-control" id="nome-grupo">
-              </div>
-              <div class="mb-3">
-                <label for="descricao-grupo" class="form-label">Descrição</label>
-                <textarea class="form-control" id="descricao-grupo" rows="2"></textarea>
-              </div>
-              
-              <div class="mb-3">
-                <label for="usuarios-grupo" class="form-label">Adicionar Usuários</label>
-                <select class="form-select" id="usuarios-grupo" multiple>
-                  <option>Hajeera</option>
-                  <option>Riya</option>
-                  <option>Nakul</option>
-                  <option>Khan</option>
-                </select>
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-primary" style="background-color: var(--cor-primaria); border-color: var(--cor-primaria);">Criar Grupo</button>
-          </div>
+            <div class="modal-header">
+                <h5 class="modal-title">Criar novo grupo</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="input-nome-grupo">Nome do grupo</label>
+                    <input type="text" class="form-control" id="input-nome-grupo" placeholder="Digite o nome do grupo">
+                </div>
+                <div class="form-group">
+                    <label for="input-descricao-grupo">Descrição (opcional)</label>
+                    <textarea class="form-control" id="input-descricao-grupo" rows="2" placeholder="Descreva o propósito do grupo"></textarea>
+                </div>
+
+                <div id="membros-selecionados-preview" class="d-flex flex-wrap mb-2 p-2 border rounded" style="min-height: 50px;">
+                    </div>
+
+                <div id="accordion-contatos">
+                    <div class="card">
+                        <div class="card-header p-0" id="heading-contatos">
+                            <h4 class="mb-0">
+                                <button class="btn btn-link btn-block text-left" data-toggle="collapse" data-target="#collapse-contatos" aria-expanded="false" aria-controls="collapse-contatos">
+                                    Adicionar Membros
+                                </button>
+                            </h4>
+                        </div>
+
+                        <div id="collapse-contatos" class="collapse" aria-labelledby="heading-contatos" data-parent="#accordion-contatos">
+                            <div class="card-body">
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    </div>
+                                    <input type="text" class="form-control" id="busca-contatos-novo-grupo" placeholder="Pesquisar contatos">
+                                </div>
+                                <ul id="lista-contatos-novo-grupo" class="list-group">
+                                    </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-criar-grupo" disabled>Criar Grupo</button>
+            </div>
         </div>
-      </div>
     </div>
+</div>
 
     <div class="modal fade" id="modal-info" tabindex="-1">
       <div class="modal-dialog modal-sm">
