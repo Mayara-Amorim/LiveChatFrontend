@@ -291,11 +291,11 @@ $(document).ready(function () {
       <div class="dropdown menu-mensagem-wrapper">
         <button class="btn-menu-msg" type="button" data-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
         <ul class="dropdown-menu">
-            <li><a class="dropdown-item acao-curtir" href="#"><i class="fas fa-thumbs-up fa-fw me-2"></i><span>${textoCurtir}</span></a></li>
-            <li><a class="dropdown-item acao-fixar-msg" href="#"><i class="fas fa-thumbtack fa-fw me-2"></i>${
+            <li><a class="dropdown-item acao-curtir" href="#"><span>${textoCurtir}</span></a></li>
+            <li><a class="dropdown-item acao-fixar-msg" href="#"</i>${
               isFixada ? "Desafixar" : "Fixar"
             }</a></li>
-            <li><a class="dropdown-item acao-apagar-msg" href="#"><i class="fas fa-trash fa-fw me-2"></i>Apagar</a></li>
+            <li><a class="dropdown-item acao-apagar-msg" href="#"></i>Apagar</a></li>
         </ul>
       </div>`;
     const fixadaClass = isFixada ? "mensagem-original-fixada" : "";
