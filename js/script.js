@@ -438,17 +438,16 @@ $(document).ready(function () {
             <div class="list-group-header">${listaUsuarios.length} Membros</div>
             <ul class="list-group list-group-flush list-group-members">${participantesHtml}</ul>
         </div>
-        <div class="modal-footer justify-content-between">
+        <div class="modal-footer" style="justify-content: flex-end">
+              
                 <div>
-                    <button type="button" class="btn btn-outline-danger btn-sm btn-sair-grupo"><i class="fas fa-sign-out-alt me-2"></i> Sair do Grupo</button>
-                </div>
-                <div>
+                <button type="button" class="btn btn-outline-danger btn-sm btn-sair-grupo"><i class="fas fa-sign-out-alt me-2"></i> Sair</button>
                     ${
                       conversa.admin
-                        ? '<button type="button" class="btn btn-outline-secondary btn-sm btn-editar-grupo"><i class="fas fa-edit me-2"></i> Editar Grupo</button>'
+                        ? '<button type="button" class="btn btn-outline-success btn-sm btn-editar-grupo ml-1"><i class="fas fa-edit me-2"></i> Editar</button>'
                         : ""
                     }
-                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-secondary btn-sm ml-1" data-dismiss="modal">Fechar</button>
                 </div>
             </div>`;
       modalContent.html(htmlGrupo);
@@ -506,7 +505,7 @@ $(document).ready(function () {
             ${avatarHtml}
             <div class="info-contato">
                 <h6>${contato.nome}</h6>
-                <p>${contato.email || ""}</p>
+                <p style="margin-left: 15px;">${contato.email || ""}</p>
             </div>
             <div class="checkbox-custom">${checkIcon}</div>
         </li>`;
@@ -583,7 +582,7 @@ $(document).ready(function () {
       renderizarContatosNovoGrupo();
       renderizarMembrosSelecionadosPreview();
       atualizarContagemMembros();
-      $("#btn-criar-grupo").text("Salvar Alterações");
+      $("#btn-criar-grupo").text("Salvar");
       modalNovoGrupo.modal("show");
     }
   });

@@ -119,8 +119,24 @@ body {
 }
 .conversa-meta { text-align: right; font-size: 0.8rem; color: var(--cor-texto-secundario); display: flex; flex-direction: column; align-items: flex-end; gap: 5px; pointer-events: none; }
 .badge-nao-lido { background-color: var(--cor-primaria); color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; }
-.botao-flutuante { position: absolute; bottom: 20px; right: 20px; width: 60px; height: 60px; background-color: var(--cor-primaria); color: white; border: none; border-radius: 50%; font-size: 1.8rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; z-index: 10; }
-
+.botao-flutuante {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background-color: var(--cor-primaria);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 5px 9px rgba(0,0,0,0.2);
+    cursor: pointer;
+    z-index: 10;
+}
 /* --- PAINEL DIREITO: TELA DE CONVERSA --- */
 
 #painel-conversa { flex-grow: 1; display: flex; flex-direction: column; background-color: white; width: 65%; }
@@ -691,6 +707,9 @@ body {
     width: 22px;
     height: 22px;
     font-size: 0.75rem;
+}
+.fas {
+    --fa-style: 600 !important;
 }
 
 @media (max-width: 768px) {
