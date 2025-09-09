@@ -1,113 +1,6 @@
+import { fetchWithAuth } from "./apiService.js";
+
 $(document).ready(function () {
-  // --- FONTE DE DADOS SIMULADA ---
-  let conversasDB = [
-    {
-      id: "c1",
-      nome: "Joyce",
-      email: "hajeera@example.com",
-      ultimaMsg: "Ok, let me check.",
-      timestamp: "Ontem",
-      naoLido: 3,
-      tipo: "chats",
-      fixado: false,
-      admin: false,
-    },
-    {
-      id: "c2",
-      nome: "Arthur",
-      email: "riya@example.com",
-      ultimaMsg: "See you tomorrow",
-      timestamp: "Segunda",
-      naoLido: 0,
-      tipo: "chats",
-      fixado: false,
-      admin: false,
-    },
-    {
-      id: "c3",
-      nome: "Equipe de Vendas",
-      descricao: "Grupo para alinhamento de estratégias e novos leads.",
-      usuarios: ["Você", "Marcos", "Ana"],
-      ultimaMsg: "<strong>Marcos:</strong> Pessoal, novo lead na área!",
-      timestamp: "10:30",
-      naoLido: 1,
-      tipo: "grupos",
-      fixado: false,
-      admin: true,
-      dataCriacao: "2024-05-12",
-      apenasAdminsEnviam: false,
-    },
-    {
-      id: "c4",
-      nome: "Maria Eloisa",
-      email: "nakul@example.com",
-      ultimaMsg: "Ok",
-      timestamp: "Segunda",
-      naoLido: 0,
-      tipo: "chats",
-      fixado: false,
-      admin: false,
-    },
-    {
-      id: "c5",
-      nome: "Projeto Alpha",
-      descricao:
-        "Discussões técnicas sobre o desenvolvimento do Projeto Alpha.",
-      usuarios: ["Você", "Ana", "Carlos"],
-      ultimaMsg: "<strong>Ana:</strong> Deadline é amanhã!",
-      timestamp: "09:15",
-      naoLido: 0,
-      tipo: "grupos",
-      fixado: true,
-      admin: false,
-      dataCriacao: "2024-05-12",
-      apenasAdminsEnviam: true,
-    },
-  ];
-
-  let mensagensDB = {
-    c1: [
-      { id: 1, tipo: "recebida", texto: "Hi, Hajeera.", fixada: false },
-      {
-        id: 2,
-        tipo: "enviada",
-        texto: "Hey, I'm open for work, plz share me further details.",
-        fixada: false,
-        hidden: false,
-      },
-    ],
-    c2: [{ id: 3, tipo: "recebida", texto: "See you tomorrow", fixada: false }],
-    c3: [
-      {
-        id: 4,
-        tipo: "recebida",
-        texto: "<strong>Marcos:</strong> Pessoal, novo lead na área!",
-        fixada: true,
-        hidden: false,
-      },
-      {
-        id: 5,
-        tipo: "enviada",
-        texto: "Obrigado por avisar, Marcos! Já estou verificando.",
-        fixada: false,
-        hidden: false,
-      },
-    ],
-    c4: [
-      { id: 6, tipo: "enviada", texto: "Tudo certo por aqui?", hidden: false },
-      { id: 7, tipo: "recebida", texto: "Ok", fixada: false, hidden: false },
-    ],
-    c5: [
-      {
-        id: 8,
-        tipo: "recebida",
-        texto: "<strong>Ana:</strong> Deadline é amanhã!",
-        fixada: false,
-        hidden: false,
-      },
-    ],
-  };
-
   // --- VARIÁVEIS GLOBAIS ---
   const coresAvatar = [
     "#5c8970",
@@ -128,49 +21,27 @@ $(document).ready(function () {
   let pressTimer;
   let modoModalGrupo = "criar";
   let idGrupoEmEdicao = null;
-
   const MAX_MEMBROS_GRUPO = 100;
-  let contatosDisponiveis = [
-    { nome: "Você", email: "voce@example.com", avatar: "V", img: null },
-    { nome: "Joyce", email: "hajeera@example.com", avatar: "J", img: null },
-    { nome: "Arthur", email: "riya@example.com", avatar: "A", img: null },
-    {
-      nome: "Maria Eloisa",
-      email: "nakul@example.com",
-      avatar: "M",
-      img: null,
-    },
-    { nome: "Ademir", email: "ademir@example.com", avatar: "A", img: null },
-    {
-      nome: "Adélia de Araujo",
-      email: "adelia@example.com",
-      avatar: "A",
-      img: null,
-    },
-    {
-      nome: "Afeto Canecas",
-      email: "afeto@example.com",
-      avatar: "A",
-      img: null,
-    },
-    { nome: "Aline", email: "aline@example.com", avatar: "A", img: null },
-    {
-      nome: "Aline (TERAPEUTA)",
-      email: "alineterapeuta@example.com",
-      avatar: "A",
-      img: null,
-    },
-    { nome: "Alura", email: "alura@example.com", avatar: "A", img: null },
-    {
-      nome: "Amaro (Pedreiro)",
-      email: "amaro@example.com",
-      avatar: "A",
-      img: null,
-    },
-  ];
   let membrosSelecionados = [];
+  const loader = $("#loader");
 
   // --- FUNÇÕES DE RENDERIZAÇÃO E LÓGICA ---
+
+  async function loadInitialChatData() {
+    showLoader();
+    try {
+      const conversations = await fetchWithAuth("/api/conversations");
+      renderChatList(conversations);
+      if (conversations && conversations.length > 0) {
+        await loadMessagesForConversation(conversations.id);
+      }
+    } catch (error) {
+      console.error("Falha ao carregar os dados do chat:", error);
+      alert("Não foi possível carregar as suas conversas.");
+    } finally {
+      hideLoader();
+    }
+  }
 
   function renderizarListaConversas() {
     const container = $("#lista-conversas");
@@ -549,6 +420,14 @@ $(document).ready(function () {
     } else {
       $("#btn-criar-grupo").prop("disabled", true);
     }
+  }
+
+  function showLoader() {
+    loader.classList.remove("hidden");
+  }
+
+  function hideLoader() {
+    loader.classList.add("hidden");
   }
 
   // --- EVENT HANDLERS ---
@@ -940,4 +819,5 @@ $(document).ready(function () {
   }
 
   iniciarApp();
+  loadInitialChatData();
 });
