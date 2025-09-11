@@ -8,7 +8,7 @@ import {
 let typingTimer;
 const messageInput = document.getElementById("message-input");
 const sendButton = document.getElementById("send-button");
-const currentConversationId = 123; // O ID da conversa ativa
+const currentConversationId = 1; // O ID da conversa ativa
 const fileInput = document.getElementById("file-input");
 const TYPING_TIMEOUT = 2000;
 const messageList = document.getElementById("message-list");
@@ -29,7 +29,6 @@ function onLoginSuccess(token) {
       subscribeToPresenceUpdates();
     },
     (error) => {
-      // O que fazer se a conexão falhar
       alert(
         "Não foi possível conectar ao serviço de chat. Tente novamente mais tarde."
       );
@@ -44,7 +43,7 @@ function openConversation(conversationId) {
     // message é o nosso ChatMessageDto que vem do backend
     // Ex: { senderDisplayName: "Mayara", content: "Olá!",... }
 
-    // Adicionar a mensagem à janela de chat na UI
+    // Adicionar a mensagem à janela de chat
     displayNewMessage(message);
   });
 }

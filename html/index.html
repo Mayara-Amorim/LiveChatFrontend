@@ -72,12 +72,16 @@
                     <h3 id="nome-contato-ativo">Selecione uma conversa</h3>
                 </div>
                 <div class="acoes-conversa-cabecalho">
+                    <div id="typing-indicator" class="typing-indicator"></div>
                 </div>
             </header>
             <div id="area-mensagens-fixadas" class="lista-rolavel"></div>
-            <main id="area-mensagens" class="lista-rolavel"></main>
+            <main id="area-mensagens" class="lista-rolavel">
+                <img src="" alt="Imagem do chat" />
+                <video controls src=""></video>
+            </main>
             <footer class="area-input">
-                <i class="fas fa-paperclip"></i>
+                <i class="fas fa-paperclip" id="file-input"></i>
                 <input type="text" id="input-mensagem" placeholder="Digite uma mensagem...">
                 <button id="botao-enviar"><i class="fas fa-paper-plane"></i></button>
             </footer>
@@ -159,6 +163,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
-    <script src="../js/script.js"></script>
+    <script type="module" src="../js/script.js"></script>
 </body>
 </html>

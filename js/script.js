@@ -1,4 +1,5 @@
-import { fetchWithAuth } from "./apiService.js";
+import { fetchWithAuth } from "./service/apiService.js";
+import { connect, subscribe, send } from "./service/chatService.js";
 
 $(document).ready(function () {
   // --- VARIÁVEIS GLOBAIS ---
@@ -24,6 +25,14 @@ $(document).ready(function () {
   const MAX_MEMBROS_GRUPO = 100;
   let membrosSelecionados = [];
   const loader = $("#loader");
+  const typingIndicator = document.getElementById("typing-indicator");
+  let activeConversationId = 1;
+  let typingTimer;
+  const TYPING_TIMEOUT = 2000;
+  let typingUsers = {};
+  const fileInput = $("#file-input");
+  let conversasDB = [];
+  let mensagensDB = [];
 
   // --- FUNÇÕES DE RENDERIZAÇÃO E LÓGICA ---
 
@@ -32,15 +41,157 @@ $(document).ready(function () {
     try {
       const conversations = await fetchWithAuth("/api/conversations");
       renderChatList(conversations);
-      if (conversations && conversations.length > 0) {
-        await loadMessagesForConversation(conversations.id);
-      }
+
+      // Conectar ao WebSocket DEPOIS de carregar os dados iniciais
+      connect(
+        () => {
+          // success, subscrever aos tópicos.
+          // ex: sub. a todas as conversas do usuário.
+          conversations.forEach((convo) => {
+            subscribeToConversation(convo.id);
+          });
+        },
+        () => alert("Não foi possível conectar ao chat.")
+      );
     } catch (error) {
       console.error("Falha ao carregar os dados do chat:", error);
       alert("Não foi possível carregar as suas conversas.");
     } finally {
       hideLoader();
     }
+  }
+  function subscribeToConversation(conversationId) {
+    const destination = `/topic/conversation/${conversationId}`;
+
+    subscribe(destination, (message) => {
+      // 'message' é o nosso ChatMessageDto que vem do backend
+      console.log("Nova mensagem recebida:", message);
+
+      // Chame a sua função para adicionar a nova mensagem à UI
+      renderNewMessage(message);
+    });
+  }
+
+  // enviar uma mensagem
+  function sendMessage(conversationId, content) {
+    if (content.trim() === "") return;
+
+    const payload = {
+      conversationId: conversationId,
+      content: content,
+    };
+
+    // @MessageMapping no ChatController
+    send("/app/chat.send", payload);
+  }
+
+  function renderNewMessage(message) {
+    const messageArea = $("#message-area");
+    const messageElement = $("#div");
+    if (message.content.startsWith("[file:")) {
+      const blobName = message.content.replace("[file:", "").replace("]", "");
+
+      fetchWithAuth(`/api/files/${blobName}/read-url`) // Você precisará de criar este endpoint no Java
+        .then((data) => {
+          const readUrl = data.readUrl;
+
+          // Se for uma imagem, mostra a imagem. Caso contrário, mostra um link de download.
+          if (isImage(blobName)) {
+            messageElement.innerHTML = `<strong>${message.senderDisplayName}:</strong><br><img src="${readUrl}" class="chat-image" alt="Imagem enviada">`;
+          } else {
+            messageElement.innerHTML = `<strong>${message.senderDisplayName}:</strong><br><a href="${readUrl}" target="_blank" download>Baixar Ficheiro: ${blobName}</a>`;
+          }
+        });
+    } else {
+      // É uma mensagem de texto normal
+      messageElement.innerHTML = `<strong>${message.senderDisplayName}:</strong> ${message.content}`;
+    }
+
+    messageArea.appendChild(messageElement);
+  }
+
+  function isImage(fileName) {
+    return /\.(jpg|jpeg|png|gif)$/i.test(fileName);
+  }
+
+  // Exemplo de como ligar a função de envio a um botão
+  const sendButton = $("#botao-enviar");
+  const messageInput = $("#input-mensagem");
+
+  sendButton.on("click", () => {
+    sendMessage(activeConversationId, messageInput.value);
+    messageInput.value = ""; // Limpa o campo de texto
+  });
+
+  messageInput.on("keydown", () => {
+    clearTimeout(typingTimer);
+    // Envia o evento "está a digitar" para o backend
+    send("/app/typing", {
+      conversationId: activeConversationId,
+      isTyping: true,
+    });
+  });
+
+  messageInput.on("keyup", () => {
+    clearTimeout(typingTimer);
+    // Inicia um temporizador. Se o usuário não digitar mais nada em 2 segundos,
+    // enviamos o evento "parou de digitar".
+    typingTimer = setTimeout(() => {
+      send("/app/typing", {
+        conversationId: activeConversationId,
+        isTyping: false,
+      });
+    }, TYPING_TIMEOUT);
+  });
+
+  //RECEBER o estado de digitação dos outros
+  function subscribeToTypingEvents(conversationId) {
+    const destination = `/topic/conversation/${conversationId}/typing`;
+
+    subscribe(destination, (event) => {
+      // event = { conversationId: 1, userId: "456", isTyping: true }
+
+      const currentUserId = "seu-id-de-usuario"; // Você deve ter o ID do usuário logado aqui
+      if (event.userId === currentUserId) {
+        return;
+      }
+
+      if (event.isTyping) {
+        typingUsers[event.userId] = true; // Adiciona o usuário à lista de quem está a digitar
+      } else {
+        delete typingUsers[event.userId]; // Remove da lista
+      }
+
+      updateTypingIndicatorUI();
+    });
+  }
+
+  // quem está a digitar
+  function updateTypingIndicatorUI() {
+    const users = Object.keys(typingUsers);
+
+    if (users.length === 0) {
+      typingIndicator.textContent = "";
+      return;
+    }
+
+    if (users.length === 1) {
+      // TODO: Você pode usar o seu UserApiClient para buscar o nome do usuário aqui
+      typingIndicator.textContent = `Usuário ${users} está a digitar...`;
+      return;
+    }
+
+    if (users.length > 1) {
+      typingIndicator.textContent = "Várias pessoas estão a digitar...";
+    }
+  }
+
+  function subscribeToVisible(userId) {
+    const destination = `/topic/presence/${userId}`;
+
+    subscribe(destination, (message) => {
+      renderVisible(message);
+    });
   }
 
   function renderizarListaConversas() {
@@ -72,6 +223,9 @@ $(document).ready(function () {
     });
     gerarAvatares();
     filtrarConversas();
+  }
+  function renderVisible(idUser) {
+    //adicionar bolinha
   }
 
   function mostrarMenuContexto(conversaItem, x, y) {
@@ -327,6 +481,77 @@ $(document).ready(function () {
     gerarAvatares();
   }
 
+  async function uploadFile(file) {
+    showLoader();
+    try {
+      const { uploadUrl, blobName } = await fetchWithAuth(
+        "/api/uploads/request-url",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            fileName: file.name,
+            contentType: file.type,
+          }),
+        }
+      );
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "x-ms-blob-type": "BlockBlob",
+          "Content-Type": file.type,
+        },
+        body: file,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Falha no upload para o Azure.");
+      }
+
+      console.log("Upload para o Azure bem-sucedido!");
+
+      const fileMessageContent = `[file:${blobName}]`;
+
+      sendChatMessage("/app/chat.send", {
+        conversationId: activeConversationId,
+        content: fileMessageContent,
+      });
+    } catch (error) {
+      console.error("Ocorreu um erro no processo de upload:", error);
+      alert("Não foi possível enviar o ficheiro.");
+    } finally {
+      hideLoader();
+    }
+  }
+
+  // feedback de progresso
+  function uploadFileWithProgress(file, sasUrl) {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", sasUrl, true);
+
+    xhr.upload.onprogress = function (event) {
+      if (event.lengthComputable) {
+        const percentComplete = (event.loaded / event.total) * 100;
+        console.log(`Progresso: ${percentComplete.toFixed(2)}%`);
+      }
+    };
+
+    xhr.onload = function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        console.log("Upload completo!");
+      } else {
+        console.error("Falha no upload.");
+      }
+    };
+
+    xhr.onerror = function () {
+      console.error("Erro de rede durante o upload.");
+    };
+
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.setRequestHeader("x-ms-blob-type", "BlockBlob");
+    xhr.send(file);
+  }
+
   function filtrarConversas() {
     const inputBusca = $("#input-busca");
     let termoBusca = "";
@@ -431,6 +656,13 @@ $(document).ready(function () {
   }
 
   // --- EVENT HANDLERS ---
+  fileInput.on("change", async (event) => {
+    const file = event.target.files;
+    if (!file) {
+      return;
+    }
+    uploadFile(file);
+  });
 
   $(document).on("click", "#botao-nova-conversa", () => {
     modoModalGrupo = "criar";
@@ -817,7 +1049,13 @@ $(document).ready(function () {
     $('.tab-link[data-tab="chats"]').trigger("click");
     alternarModo("maximizado");
   }
-
+  if (localStorage.getItem("chat_jwt_token")) {
+    loadInitialChatData();
+    openConversation(123);
+    subscribeToTypingEvents(123);
+    subscribeToVisible(1);
+  } else {
+    //não sei ainda
+  }
   iniciarApp();
-  loadInitialChatData();
 });
